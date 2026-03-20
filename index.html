@@ -93,55 +93,6 @@ window.saveToFirebase = async function() {
       <img src="${user.photoURL}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-left:6px;">
       <span style="font-size:11px;">${user.displayName?.split(' ')[0]}</span>
       <span style="font-size:10px;color:var(--text-3);margin-right:4px;">| خروج</span>`;
-    document.getElementById('authBtn').onclick = () => signOut(auth);
-    document.getElementById('syncStatus').textContent = '🔄 جاري تحميل البيانات...';
-
-    // جيب البيانات من Firestore
-    const ref = doc(db, 'portfolios', user.uid);
-    const snap = await getDoc(ref);
-    if(snap.exists()) {
-      const data = snap.data();
-      if(data.db) {
-        window.DB = data.db;
-        // تأكد من الحقول
-        if(!window.DB.settings) window.DB.settings = {riskFreeRate:27};
-        if(!window.DB.watchlist) window.DB.watchlist = [];
-        if(!window.DB.alerts) window.DB.alerts = [];
-        localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
-        renderDashboard();
-        renderTerms();
-        document.getElementById('syncStatus').textContent = '☁️ متزامن';
-      }
-    } else {
-      // مش عنده بيانات على Firestore — ارفع البيانات المحلية
-      document.getElementById('syncStatus').textContent = '⬆️ رفع البيانات...';
-      await saveToFirebase();
-      document.getElementById('syncStatus').textContent = '☁️ متزامن';
-    }
-  } else {
-    // مش مسجل
-    window._fbUser = null;
-    document.getElementById('authBtn').innerHTML = '🔐 تسجيل دخول بـ Google';
-    document.getElementById('authBtn').onclick = () => {
-      const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider);
-    };
-    document.getElementById('syncStatus').textContent = '💾 محلي فقط';
-  }
-});
-
-// ====== Save to Firebase ======
-window.saveToFirebase = async function() {
-  if(!window._fbUser) return;
-  try {
-    const ref = doc(db, 'portfolios', window._fbUser.uid);
-    await setDoc(ref, { db: window.DB, updatedAt: new Date().toISOString() });
-    document.getElementById('syncStatus').textContent = '☁️ متزامن';
-  } catch(e) {
-    document.getElementById('syncStatus').textContent = '⚠️ خطأ في الحفظ';
-    console.error('Firebase save error:', e);
-  }
-};
 </script>
 <style>
 :root {
