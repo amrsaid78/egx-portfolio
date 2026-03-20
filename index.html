@@ -88,6 +88,16 @@ window.saveToFirebase = async function() {
 };
 </script>
 
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBQ0x72YSGSWa5qVUtQoUYE11r-FuqjYPY",
+  authDomain: "egx-portfolio-2630b.firebaseapp.com",
+  projectId: "egx-portfolio-2630b",
+  storageBucket: "egx-portfolio-2630b.firebasestorage.app",
+  messagingSenderId: "27221270124",
+  appId: "1:27221270124:web:b385b617882468212d8249"
+};
+
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
