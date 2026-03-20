@@ -74,16 +74,31 @@ window.saveToFirebase = async function() {
   if(!window._fbUser) return;
   const statusEl = document.getElementById('syncStatus');
   try {
+    // تنظيف البيانات قبل الحفظ — شيل priceHistory القديمة عشان نقلل الحجم
+    const cleanDB = JSON.parse(JSON.stringify(window.DB));
+    if(cleanDB.holdings) {
+      cleanDB.holdings.forEach(h => {
+        // احتفظ بآخر 60 يوم بس بدل 180
+        if(h.priceHistory && h.priceHistory.length > 60) {
+          h.priceHistory = h.priceHistory.slice(-60);
+        }
+      });
+    }
+
+    // تحقق من الحجم
+    const dataSize = JSON.stringify(cleanDB).length;
+    console.log('Data size:', Math.round(dataSize/1024) + 'KB');
+
     await fbDb.collection('portfolios').doc(window._fbUser.uid).set({
-      db: window.DB,
+      db: cleanDB,
       updatedAt: new Date().toISOString(),
       userEmail: window._fbUser.email,
       userName:  window._fbUser.displayName
     });
-    if(statusEl) statusEl.textContent = '☁️ متزامن';
+    if(statusEl) statusEl.textContent = '☁️ متزامن (' + Math.round(dataSize/1024) + 'KB)';
   } catch(e) {
-    console.error('Firebase save error:', e);
-    if(statusEl) statusEl.textContent = '⚠️ خطأ في الحفظ';
+    console.error('Firebase save error:', e.code, e.message);
+    if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message || 'خطأ في الحفظ');
   }
 };
 </script>
