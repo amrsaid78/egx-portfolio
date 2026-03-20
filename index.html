@@ -676,14 +676,62 @@ body::after {
 }
 
 @media(max-width:768px) {
-  .main { padding:16px; }
-  .topbar { padding:0 16px; }
+  .main { padding:10px; }
+  .topbar { padding:0 10px; height:auto; min-height:56px; flex-wrap:wrap; gap:6px; }
   .topbar-center { display:none; }
-  .kpi-strip { grid-template-columns:repeat(2,1fr); }
-  .grid-3 { grid-template-columns:1fr; }
+  .topbar-right { gap:5px; flex-wrap:wrap; }
+  .topbar-right button, .topbar-right label { padding:5px 8px !important; font-size:11px !important; }
+  #authBtn { padding:5px 10px !important; font-size:11px !important; }
+  #syncStatus { display:none; }
+  .kpi-strip { grid-template-columns:repeat(2,1fr); gap:8px; }
+  .kpi { padding:12px; }
+  .kpi-val { font-size:18px; }
+  .grid-2, .grid-3 { grid-template-columns:1fr; }
   .form-row { grid-template-columns:1fr; }
   .form-row.triple { grid-template-columns:1fr 1fr; }
   th.hide-sm, td.hide-sm { display:none; }
+  .panel { border-radius:10px; }
+  .panel-header { padding:12px 14px; flex-wrap:wrap; gap:6px; }
+  .panel-title { font-size:12px; }
+  .data-table { font-size:11px; }
+  .data-table th, .data-table td { padding:8px 6px; }
+  .stock-info .name { font-size:11px; }
+  .stock-info .ticker { font-size:10px; }
+
+  /* إخفاء بعض الأعمدة على الموبايل */
+  .data-table th:nth-child(n+5):not(:last-child),
+  .data-table td:nth-child(n+5):not(:last-child) { display:none; }
+
+  /* Navigation بديل للموبايل */
+  .mobile-nav {
+    display:flex !important;
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:var(--bg-1);
+    border-top:1px solid var(--border);
+    z-index:100;
+    padding:6px 0;
+  }
+  .mobile-nav button {
+    flex:1; background:none; border:none;
+    color:var(--text-3); font-family:var(--font-ar);
+    font-size:9px; cursor:pointer;
+    display:flex; flex-direction:column;
+    align-items:center; gap:2px; padding:4px 2px;
+    transition:color 0.2s;
+  }
+  .mobile-nav button.active { color:var(--gold); }
+  .mobile-nav button span.icon { font-size:18px; }
+
+  .main { padding-bottom:70px; }
+}
+
+@media(max-width:480px) {
+  .kpi-strip { grid-template-columns:1fr 1fr; gap:6px; }
+  .kpi-val { font-size:16px; }
+  .topbar-right .live-badge { display:none; }
+  .topbar-right .topbar-date { display:none; }
+  .form-row.triple { grid-template-columns:1fr; }
 }
 
 /* ===== SPARKLINE ===== */
@@ -754,6 +802,30 @@ body::after {
       <div class="topbar-date" id="topDate"></div>
     </div>
 </header>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav" style="display:none;">
+  <button onclick="showPage('dashboard',this)" class="active">
+    <span class="icon">📊</span>
+    <span>الرئيسية</span>
+  </button>
+  <button onclick="showPage('holdings',this)">
+    <span class="icon">📋</span>
+    <span>الأسهم</span>
+  </button>
+  <button onclick="showPage('analysis',this)">
+    <span class="icon">📈</span>
+    <span>التحليل</span>
+  </button>
+  <button onclick="showPage('watchlist',this)">
+    <span class="icon">👁️</span>
+    <span>المراقبة</span>
+  </button>
+  <button onclick="showPage('guide',this)">
+    <span class="icon">📚</span>
+    <span>الدليل</span>
+  </button>
+</div>
 
 <!-- MAIN -->
 <div class="main">
@@ -1993,6 +2065,7 @@ function toast(msg, type='success') {
 function showPage(name, btn) {
   document.querySelectorAll('.page-view').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   if(btn) btn.classList.add('active');
   renderPage(name);
