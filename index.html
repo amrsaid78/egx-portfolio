@@ -7,114 +7,121 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase SDKs via compat -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" onerror="console.error('Firebase app failed to load')"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js" onerror="console.error('Firebase auth failed to load')"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js" onerror="console.error('Firebase firestore failed to load')"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBQ0x72YSGSWa5qVUtQoUYE11r-FuqjYPY",
-  authDomain: "egx-portfolio-2630b.firebaseapp.com",
-  projectId: "egx-portfolio-2630b",
-  storageBucket: "egx-portfolio-2630b.firebasestorage.app",
-  messagingSenderId: "27221270124",
-  appId: "1:27221270124:web:b385b617882468212d8249"
-};
-firebase.initializeApp(firebaseConfig);
-const fbAuth = firebase.auth();
-const fbDb   = firebase.firestore();
+// تأكد إن Firebase اتحمل صح
+if(typeof firebase === 'undefined') {
+  console.error('Firebase not loaded! Check network/adblocker');
+  document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('syncStatus');
+    if(el) el.textContent = '❌ Firebase لم يتحمل';
+    const btn = document.getElementById('authBtn');
+    if(btn) { btn.textContent = '❌ تحقق من الاتصال'; btn.style.background = '#666'; }
+  });
+} else {
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQ0x72YSGSWa5qVUtQoUYE11r-FuqjYPY",
+    authDomain: "egx-portfolio-2630b.firebaseapp.com",
+    projectId: "egx-portfolio-2630b",
+    storageBucket: "egx-portfolio-2630b.firebasestorage.app",
+    messagingSenderId: "27221270124",
+    appId: "1:27221270124:web:b385b617882468212d8249"
+  };
 
-// Auth state
-fbAuth.onAuthStateChanged(async function(user) {
-  const btn      = document.getElementById('authBtn');
-  const statusEl = document.getElementById('syncStatus');
-  if(user) {
-    window._fbUser = user;
-    if(btn) {
-      btn.innerHTML = '<img src="'+user.photoURL+'" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-left:4px;"> <span>'+user.displayName.split(' ')[0]+'</span> <span style="font-size:10px;opacity:0.7;">| خروج</span>';
-      btn.onclick = function(){ fbAuth.signOut(); };
-    }
-    if(statusEl) statusEl.textContent = '🔄 جاري التحميل...';
-    try {
-      const snap = await fbDb.collection('portfolios').doc(user.uid).get();
-      if(snap.exists) {
-        const data = snap.data();
-        if(data && data.db) {
-          window.DB = data.db;
-          if(!window.DB.settings)  window.DB.settings  = {riskFreeRate:27};
-          if(!window.DB.watchlist) window.DB.watchlist = [];
-          if(!window.DB.alerts)    window.DB.alerts    = [];
-          localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
-          if(typeof renderDashboard==='function') renderDashboard();
-          if(typeof renderTerms==='function') renderTerms();
-        }
-        if(statusEl) statusEl.textContent = '☁️ متزامن';
-      } else {
-        if(statusEl) statusEl.textContent = '⬆️ رفع البيانات...';
-        await window.saveToFirebase();
-        if(statusEl) statusEl.textContent = '☁️ متزامن';
+  firebase.initializeApp(firebaseConfig);
+  const fbAuth = firebase.auth();
+  const fbDb   = firebase.firestore();
+
+  // Auth state
+  fbAuth.onAuthStateChanged(async function(user) {
+    const btn      = document.getElementById('authBtn');
+    const statusEl = document.getElementById('syncStatus');
+    if(user) {
+      window._fbUser = user;
+      if(btn) {
+        btn.innerHTML = '<img src="'+user.photoURL+'" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-left:4px;"> <span>'+user.displayName.split(' ')[0]+'</span> <span style="font-size:10px;opacity:0.7;">| خروج</span>';
+        btn.onclick = function(){ fbAuth.signOut(); };
       }
-    } catch(e) {
-      console.error('Firebase load error:', e);
-      if(statusEl) statusEl.textContent = '⚠️ خطأ في التحميل';
-    }
-  } else {
-    window._fbUser = null;
-    if(btn) {
-      btn.innerHTML = '🔐 تسجيل دخول';
-      btn.onclick = function(){
-        var provider = new firebase.auth.GoogleAuthProvider();
-        fbAuth.signInWithPopup(provider).catch(function(e){ alert('خطأ: '+e.message); });
-      };
-    }
-    if(statusEl) statusEl.textContent = '💾 محلي فقط';
-  }
-});
-
-window.saveToFirebase = async function() {
-  if(!window._fbUser) return;
-  const statusEl = document.getElementById('syncStatus');
-  try {
-    // تنظيف البيانات — شيل كل undefined و null من الـ objects
-    function cleanObj(obj) {
-      if(Array.isArray(obj)) return obj.map(cleanObj);
-      if(obj && typeof obj === 'object') {
-        const clean = {};
-        Object.keys(obj).forEach(k => {
-          if(obj[k] !== undefined) {
-            clean[k] = cleanObj(obj[k]);
+      if(statusEl) statusEl.textContent = '🔄 جاري التحميل...';
+      try {
+        const snap = await fbDb.collection('portfolios').doc(user.uid).get();
+        if(snap.exists) {
+          const data = snap.data();
+          if(data && data.db) {
+            window.DB = data.db;
+            if(!window.DB.settings)  window.DB.settings  = {riskFreeRate:27};
+            if(!window.DB.watchlist) window.DB.watchlist = [];
+            if(!window.DB.alerts)    window.DB.alerts    = [];
+            localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
+            if(typeof renderDashboard==='function') renderDashboard();
+            if(typeof renderTerms==='function') renderTerms();
           }
-        });
-        return clean;
-      }
-      return obj;
-    }
-
-    const cleanDB = cleanObj(JSON.parse(JSON.stringify(window.DB)));
-
-    // قلل حجم priceHistory
-    if(cleanDB.holdings) {
-      cleanDB.holdings.forEach(h => {
-        if(h.priceHistory && h.priceHistory.length > 60) {
-          h.priceHistory = h.priceHistory.slice(-60);
+          if(statusEl) statusEl.textContent = '☁️ متزامن';
+        } else {
+          if(statusEl) statusEl.textContent = '⬆️ رفع البيانات...';
+          await window.saveToFirebase();
+          if(statusEl) statusEl.textContent = '☁️ متزامن';
         }
-      });
+      } catch(e) {
+        console.error('Firebase load error:', e.code, e.message);
+        if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message);
+      }
+    } else {
+      window._fbUser = null;
+      if(btn) {
+        btn.innerHTML = '🔐 تسجيل دخول';
+        btn.onclick = function(){
+          var provider = new firebase.auth.GoogleAuthProvider();
+          fbAuth.signInWithPopup(provider).catch(function(e){
+            console.error('Login error:', e);
+            alert('خطأ في تسجيل الدخول:\n' + e.message);
+          });
+        };
+      }
+      if(statusEl) statusEl.textContent = '💾 محلي فقط';
     }
+  });
 
-    const dataSize = JSON.stringify(cleanDB).length;
-
-    await fbDb.collection('portfolios').doc(window._fbUser.uid).set({
-      db: cleanDB,
-      updatedAt: new Date().toISOString(),
-      userEmail: window._fbUser.email || '',
-      userName:  window._fbUser.displayName || ''
-    });
-    if(statusEl) statusEl.textContent = '☁️ متزامن (' + Math.round(dataSize/1024) + 'KB)';
-  } catch(e) {
-    console.error('Firebase save error:', e.code, e.message);
-    if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message || 'خطأ');
-  }
-};
+  window.saveToFirebase = async function() {
+    if(!window._fbUser) return;
+    const statusEl = document.getElementById('syncStatus');
+    try {
+      function cleanObj(obj) {
+        if(Array.isArray(obj)) return obj.map(cleanObj);
+        if(obj && typeof obj === 'object') {
+          const clean = {};
+          Object.keys(obj).forEach(k => {
+            if(obj[k] !== undefined) clean[k] = cleanObj(obj[k]);
+          });
+          return clean;
+        }
+        return obj;
+      }
+      const cleanDB = cleanObj(JSON.parse(JSON.stringify(window.DB, function(k,v){ return v===undefined?null:v; })));
+      if(cleanDB.holdings) {
+        cleanDB.holdings.forEach(h => {
+          if(h.priceHistory && h.priceHistory.length > 60)
+            h.priceHistory = h.priceHistory.slice(-60);
+        });
+      }
+      await fbDb.collection('portfolios').doc(window._fbUser.uid).set({
+        db: cleanDB,
+        updatedAt: new Date().toISOString(),
+        userEmail: window._fbUser.email || '',
+        userName:  window._fbUser.displayName || ''
+      });
+      const kb = Math.round(JSON.stringify(cleanDB).length/1024);
+      if(statusEl) statusEl.textContent = '☁️ متزامن (' + kb + 'KB)';
+    } catch(e) {
+      console.error('Firebase save error:', e.code, e.message);
+      if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message || 'خطأ في الحفظ');
+    }
+  };
+}
 </script>
+
 
 <style>
 :root {
